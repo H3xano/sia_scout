@@ -2,3 +2,5 @@ python-dotenv
 aiohttp
 aiosqlite
 pandas
+matplotlib
+seaborn

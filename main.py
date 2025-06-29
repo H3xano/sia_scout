@@ -9,6 +9,7 @@ from sia_scout.client import AsyncSiaClient
 from sia_scout.collector import AsyncCollector
 from sia_scout.database import initialize_database
 from sia_scout.analyzer import Analyzer
+from sia_scout.visualizer import Visualizer
 
 
 def setup_logging():
@@ -18,12 +19,20 @@ def setup_logging():
     )
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
+
+    # --- FIX IS HERE ---
+    # Create a handler to write logs to a file
     file_handler = logging.FileHandler(config.LOG_FILE)
     file_handler.setFormatter(log_format)
+    # Add the FILE handler to the logger
     root_logger.addHandler(file_handler)
+
+    # Create a handler to write logs to the console
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(log_format)
+    # Add the CONSOLE handler to the logger
     root_logger.addHandler(console_handler)
+    # --- END OF FIX ---
 
 
 async def main_async():
@@ -34,8 +43,8 @@ async def main_async():
     parser = argparse.ArgumentParser(description="SIA-Scout: A Spamhaus Intelligence API scanner.")
     parser.add_argument(
         'action',
-        choices=['collect', 'analyze'],
-        help="The action to perform: 'collect' data from the API, or 'analyze' existing data."
+        choices=['collect', 'analyze', 'visualize'],
+        help="The action to perform: 'collect', 'analyze', or 'visualize' data."
     )
     args = parser.parse_args()
 
@@ -45,7 +54,8 @@ async def main_async():
 
     logger.info(f"--- SIA-Scout Initializing | Action: {args.action.upper()} ---")
 
-    await initialize_database(config.DATABASE_FILE)
+    if args.action in ['collect', 'analyze', 'visualize']:
+        await initialize_database(config.DATABASE_FILE)
 
     if args.action == 'collect':
         client = AsyncSiaClient(
@@ -55,7 +65,6 @@ async def main_async():
             token_file=config.TOKEN_FILE
         )
 
-        # FIX: Check limits using the sync method before starting the async collection
         client.check_limits_sync()
 
         query_params = {
@@ -76,6 +85,10 @@ async def main_async():
     elif args.action == 'analyze':
         analyzer = Analyzer(db_path=config.DATABASE_FILE)
         await analyzer.generate_summary_report()
+
+    elif args.action == 'visualize':
+        visualizer = Visualizer(db_path=config.DATABASE_FILE)
+        await visualizer.generate_all_visuals()
 
 
 if __name__ == "__main__":
